@@ -13,5 +13,5 @@ clean:
 	find . -type f -name "*.swp" -exec rm {} \;
 
 all: clean test
-	-flake8 --ignore E251,E266,W391,W503
+	-flake8 --ignore E251,E266,W391,W503,E241,E221
 

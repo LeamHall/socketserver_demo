@@ -3,12 +3,15 @@
 # name    :  socketserver_simple.py
 # version :  0.0.1
 # date    :  20240712
-# author  :  
-# desc    :  
+# author  :
+# desc    :
 
+import argparse
 import json
 import socketserver
 import sqlite3
+import sys
+
 
 class Cadet():
     def __init__(self, data):
@@ -18,12 +21,13 @@ class Cadet():
     def name(self):
         return "{} {}".format(self.first_name, self.last_name)
 
+
 class RequestHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
         con = sqlite3.connect("cadets.db")
         self.cur = con.cursor()
-    
+
     def handle(self):
         self.data = self.request.recv(1024).strip()
         print("Recieved from {}:".format(self.client_address[0]))
@@ -46,13 +50,13 @@ class RequestHandler(socketserver.BaseRequestHandler):
             "plot":         result[6],
             "temperament":  result[7],
             "notes":        result[8],
-            }
+        }
         data[new_data["idx"]] = new_data
         return data
 
     def search_values(self, terms = [], data = ()):
-        """ Return True if string of all search terms are in data values, else False.
-            'data' is a tuple from a Sqlite3 fetchall().
+        """ Return True if string of all search terms are in data values,
+            else False. 'data' is a tuple from a Sqlite3 fetchall().
 
         >>> search_values(["Lefron"], (1429, "Lefron"))
         True
@@ -88,7 +92,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
             for dat in data:
                 if str(term).lower() in str(dat).lower():
                     term_result = True
-            if term_result == False:
+            if not term_result:
                 return False
 
         return True
@@ -96,29 +100,41 @@ class RequestHandler(socketserver.BaseRequestHandler):
     def get_response(self, key):
         return_data = dict()
         search_key = key.decode()
-        # res = self.cur.execute("Select * from people where first_name = ?", (search_key,))
+        # res = self.cur.execute(
+        #   "Select * from people where first_name = ?", (search_key,))
         res = self.cur.execute("Select * from people")
         results = res.fetchall()
 
-        # result = res.fetchone()
-        print("results are: ", results)
         for result in results:
             if self.search_values([search_key], result):
                 return_data = self.build_data(return_data, result)
 
-        # cadet = Cadet(result)
-        # print("cadet is: ", cadet.name())
-        #return str.encode(cadet.name())
-        #return str.encode(search_key)
-        #return str.encode(search_key)
         return_data_str = json.dumps(return_data)
         return str.encode(return_data_str)
 
 
+def parse_arguments(args=[]):
+    """ Returns the parsed arguments. """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-H", "--host",
+        help    = "Host IP to listen on",
+        default = "",
+    )
+    parser.add_argument(
+        "-P", "--port",
+        help    = "Port to listen on",
+        default = 8080,
+    )
+
+    return vars(parser.parse_args(args))
+
+
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 8080
-    
-    with socketserver.TCPServer((HOST, PORT), RequestHandler) as server:
+    _args = parse_arguments(args = sys.argv[1:])
+
+    with socketserver.TCPServer(
+            (_args["host"], _args["port"]), RequestHandler) as server:
         server.serve_forever()
 
 
